@@ -23,7 +23,7 @@
 
     #map {
       width: 100%;
-      height: calc(100vh - 120px);
+      height: calc(100vh - 150px);
       position: relative;
     }
 
@@ -71,38 +71,10 @@
       background: #003f7f;
       transform: translateY(0);
     }
-
-    .driving-ui {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: white;
-      border-radius: 12px;
-      padding: 10px 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      z-index: 1001;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .location-dot {
-      width: 16px;
-      height: 16px;
-      background: blue;
-      border-radius: 50%;
-      box-shadow: 0 0 5px rgba(0,0,255,0.5);
-    }
   </style>
 
   <body>
     <div id="map"></div>
-
-    <div class="driving-ui">
-      <div class="location-dot"></div>
-      <span>Driving Mode Active</span>
-    </div>
 
     <div class="rounded-box">
       <button class="rounded-button" onclick="changeMapStyle('dark')">
@@ -117,6 +89,9 @@
       <button class="rounded-button" onclick="changeMapStyle('angelsWorld')">
         <i class="fas fa-feather-alt"></i>Angel's World
       </button>
+      <button class="rounded-button" onclick="enableDestinationSelection()">
+        <i class="fas fa-map-marker-alt"></i>Set Destination
+      </button>
     </div>
 
     <script>
@@ -126,6 +101,9 @@
         devilsWorld: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTtobtoaZwRCzLtBb0toa8Nn.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
         angelsWorld: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTtI-sLY08pGyLPzUUOeWtiD.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA'
       };
+
+      let userPosition = null;
+      let routeCoords = [];
 
       const map = tt.map({
         key: 'Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
@@ -142,9 +120,6 @@
         }
       }
 
-      let routeCoords = [];
-      let userMarker;
-
       function getRoute(start, end) {
         fetch(`https://api.tomtom.com/routing/1/calculateRoute/${start[1]},${start[0]}:${end[1]},${end[0]}/json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA&instructionsType=text`)
           .then(res => res.json())
@@ -152,26 +127,20 @@
             const points = data.routes[0].legs[0].points;
             routeCoords = points.map(p => [p.longitude, p.latitude]);
 
-            const routeData = {
-              type: 'Feature',
-              geometry: {
-                type: 'LineString',
-                coordinates: routeCoords
-              }
-            };
-
             if (map.getSource('route')) {
-              map.getSource('route').setData(routeData);
+              map.getSource('route').setData({
+                type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords }
+              });
             } else {
-              map.addSource('route', { type: 'geojson', data: routeData });
+              map.addSource('route', {
+                type: 'geojson',
+                data: { type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }
+              });
               map.addLayer({
                 id: 'route',
                 type: 'line',
                 source: 'route',
-                paint: {
-                  'line-color': '#888',
-                  'line-width': 6
-                }
+                paint: { 'line-color': '#888', 'line-width': 6 }
               });
             }
 
@@ -184,10 +153,7 @@
                 id: 'progress',
                 type: 'line',
                 source: 'progress',
-                paint: {
-                  'line-color': '#007bff',
-                  'line-width': 6
-                }
+                paint: { 'line-color': '#007bff', 'line-width': 6 }
               });
             }
           });
@@ -220,10 +186,7 @@
           const traveled = routeCoords.slice(0, closestIdx + 1);
           map.getSource('progress').setData({
             type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: traveled
-            }
+            geometry: { type: 'LineString', coordinates: traveled }
           });
         }
       }
@@ -232,17 +195,9 @@
         if (navigator.geolocation) {
           navigator.geolocation.watchPosition(
             position => {
-              const userCoords = [position.coords.longitude, position.coords.latitude];
-              map.setCenter(userCoords);
-              updateProgress(userCoords);
-
-              if (!userMarker) {
-                userMarker = new tt.Marker({ color: 'blue' })
-                  .setLngLat(userCoords)
-                  .addTo(map);
-              } else {
-                userMarker.setLngLat(userCoords);
-              }
+              userPosition = [position.coords.longitude, position.coords.latitude];
+              map.setCenter(userPosition);
+              updateProgress(userPosition);
             },
             error => console.error('Geolocation error:', error),
             { enableHighAccuracy: true }
@@ -252,8 +207,19 @@
         }
       }
 
+      function enableDestinationSelection() {
+        alert('Click on the map to set your destination.');
+        map.once('click', e => {
+          const destination = [e.lngLat.lng, e.lngLat.lat];
+          if (userPosition) {
+            getRoute(userPosition, destination);
+          } else {
+            alert('Waiting for user location.');
+          }
+        });
+      }
+
       addUserTracking();
-      getRoute([-0.1276, 51.5074], [-0.1376, 51.5174]);
     </script>
   </body>
 </html>
