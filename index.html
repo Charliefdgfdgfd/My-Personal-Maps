@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#007bff" />
+    <link rel="manifest" href="manifest.json" />
+    <link
+      rel="stylesheet"
+      href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css"
+    />
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <title>My Personal Maps</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+        background: #000;
+        overflow: hidden;
+      }
+
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+
+      .controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px;
+        border-radius: 15px;
+        display: flex;
+        gap: 10px;
+        z-index: 1001;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+
+      .controls button {
+        border: none;
+        background: #007bff;
+        color: white;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+      }
+
+      .controls button:hover {
+        background: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div class="controls">
+      <button onclick="changeMapStyle('dark')"><i class="fas fa-moon"></i></button>
+      <button onclick="changeMapStyle('light')"><i class="fas fa-sun"></i></button>
+      <button onclick="changeMapStyle('devilsWorld')"><i class="fas fa-fire"></i></button>
+      <button onclick="changeMapStyle('angelsWorld')"><i class="fas fa-feather-alt"></i></button>
+    </div>
+
+    <script>
+      const styles = {
+        dark: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTsPIC6_NRxEQqNF68bbqTSj.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
+        light: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTuVmnYtsgNB9ZYe5mJ0LB4J.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
+        devilsWorld: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTtobtoaZwRCzLtBb0toa8Nn.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
+        angelsWorld: 'https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAQmNWbWVKTUJjeHZHektqcTtI-sLY08pGyLPzUUOeWtiD.json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA'
+      };
+
+      const map = tt.map({
+        key: 'Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA',
+        container: 'map',
+        center: [-0.1276, 51.5074],
+        zoom: 15
+      });
+
+      map.on('load', () => map.setStyle(styles.dark));
+
+      function changeMapStyle(styleName) {
+        if (styles[styleName]) {
+          map.setStyle(styles[styleName]);
+        }
+      }
+
+      function addUserTracking() {
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            position => {
+              const userCoords = [position.coords.longitude, position.coords.latitude];
+              map.setCenter(userCoords);
+
+              const sourceId = 'user-location';
+              const geojsonData = {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: userCoords
+                }
+              };
+
+              if (!map.getSource(sourceId)) {
+                map.addSource(sourceId, {
+                  type: 'geojson',
+                  data: geojsonData
+                });
+
+                map.addLayer({
+                  id: sourceId,
+                  type: 'symbol',
+                  source: sourceId,
+                  layout: {
+                    'icon-image': 'car',
+                    'icon-size': 1.5
+                  }
+                });
+              } else {
+                map.getSource(sourceId).setData(geojsonData);
+              }
+            },
+            error => console.error('Geolocation error:', error),
+            { enableHighAccuracy: true }
+          );
+        } else {
+          alert('Geolocation is not supported by your browser.');
+        }
+      }
+
+      addUserTracking();
+    </script>
+  </body>
+</html>
