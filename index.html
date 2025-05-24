@@ -97,47 +97,96 @@
       }
 
       function addUserTracking() {
-        if (navigator.geolocation) {
-          navigator.geolocation.watchPosition(
-            position => {
-              const userCoords = [position.coords.longitude, position.coords.latitude];
-              map.setCenter(userCoords);
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      position => {
+        const userCoords = [position.coords.longitude, position.coords.latitude];
 
-              const sourceId = 'user-location';
-              const geojsonData = {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: userCoords
-                }
-              };
+        map.setCenter(userCoords);
 
-              if (!map.getSource(sourceId)) {
-                map.addSource(sourceId, {
-                  type: 'geojson',
-                  data: geojsonData
-                });
-
-                map.addLayer({
-                  id: sourceId,
-                  type: 'symbol',
-                  source: sourceId,
-                  layout: {
-                    'icon-image': 'car',
-                    'icon-size': 1.5
-                  }
-                });
-              } else {
-                map.getSource(sourceId).setData(geojsonData);
+        // Blue Dot
+        if (!map.getSource('user-dot')) {
+          map.addSource('user-dot', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: userCoords
               }
-            },
-            error => console.error('Geolocation error:', error),
-            { enableHighAccuracy: true }
+            }
+          });
+          map.addLayer({
+            id: 'user-dot',
+            type: 'circle',
+            source: 'user-dot',
+            paint: {
+              'circle-radius': 8,
+              'circle-color': '#007bff',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#fff'
+            }
+          });
+        } else {
+          map.getSource('user-dot').setData({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: userCoords
+            }
+          });
+        }
+
+        // Arrow (TomTom car icon)
+        if (!map.getSource('user-arrow')) {
+          map.loadImage(
+            'https://api.tomtom.com/maps-sdk-for-web/cdn/static/icons/glyphs/navigation/arrow-blue.png',
+            (error, image) => {
+              if (error) throw error;
+              if (!map.hasImage('arrow-icon')) {
+                map.addImage('arrow-icon', image);
+              }
+
+              map.addSource('user-arrow', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'Point',
+                    coordinates: userCoords
+                  }
+                }
+              });
+
+              map.addLayer({
+                id: 'user-arrow',
+                type: 'symbol',
+                source: 'user-arrow',
+                layout: {
+                  'icon-image': 'arrow-icon',
+                  'icon-size': 0.5,
+                  'icon-allow-overlap': true
+                }
+              });
+            }
           );
         } else {
-          alert('Geolocation is not supported by your browser.');
+          map.getSource('user-arrow').setData({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: userCoords
+            }
+          });
         }
-      }
+      },
+      error => console.error('Geolocation error:', error),
+      { enableHighAccuracy: true }
+    );
+  } else {
+    alert('Geolocation is not supported by your browser.');
+  }
+
 
       addUserTracking();
     </script>
