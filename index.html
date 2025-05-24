@@ -23,7 +23,7 @@
 
     #map {
       width: 100%;
-      height: calc(100vh - 100px);
+      height: calc(100vh - 120px);
       position: relative;
     }
 
@@ -71,10 +71,38 @@
       background: #003f7f;
       transform: translateY(0);
     }
+
+    .driving-ui {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 12px;
+      padding: 10px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .location-dot {
+      width: 16px;
+      height: 16px;
+      background: blue;
+      border-radius: 50%;
+      box-shadow: 0 0 5px rgba(0,0,255,0.5);
+    }
   </style>
 
   <body>
     <div id="map"></div>
+
+    <div class="driving-ui">
+      <div class="location-dot"></div>
+      <span>Driving Mode Active</span>
+    </div>
 
     <div class="rounded-box">
       <button class="rounded-button" onclick="changeMapStyle('dark')">
@@ -115,6 +143,7 @@
       }
 
       let routeCoords = [];
+      let userMarker;
 
       function getRoute(start, end) {
         fetch(`https://api.tomtom.com/routing/1/calculateRoute/${start[1]},${start[0]}:${end[1]},${end[0]}/json?key=Mpkj5jo4AdJxn6gA2Y7hbKB3LypyPIRA&instructionsType=text`)
@@ -123,25 +152,18 @@
             const points = data.routes[0].legs[0].points;
             routeCoords = points.map(p => [p.longitude, p.latitude]);
 
+            const routeData = {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: routeCoords
+              }
+            };
+
             if (map.getSource('route')) {
-              map.getSource('route').setData({
-                type: 'Feature',
-                geometry: {
-                  type: 'LineString',
-                  coordinates: routeCoords
-                }
-              });
+              map.getSource('route').setData(routeData);
             } else {
-              map.addSource('route', {
-                type: 'geojson',
-                data: {
-                  type: 'Feature',
-                  geometry: {
-                    type: 'LineString',
-                    coordinates: routeCoords
-                  }
-                }
-              });
+              map.addSource('route', { type: 'geojson', data: routeData });
               map.addLayer({
                 id: 'route',
                 type: 'line',
@@ -156,13 +178,7 @@
             if (!map.getSource('progress')) {
               map.addSource('progress', {
                 type: 'geojson',
-                data: {
-                  type: 'Feature',
-                  geometry: {
-                    type: 'LineString',
-                    coordinates: []
-                  }
-                }
+                data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } }
               });
               map.addLayer({
                 id: 'progress',
@@ -219,6 +235,14 @@
               const userCoords = [position.coords.longitude, position.coords.latitude];
               map.setCenter(userCoords);
               updateProgress(userCoords);
+
+              if (!userMarker) {
+                userMarker = new tt.Marker({ color: 'blue' })
+                  .setLngLat(userCoords)
+                  .addTo(map);
+              } else {
+                userMarker.setLngLat(userCoords);
+              }
             },
             error => console.error('Geolocation error:', error),
             { enableHighAccuracy: true }
@@ -229,9 +253,7 @@
       }
 
       addUserTracking();
-
-      // Example route usage
-      getRoute([-0.1276, 51.5074], [-0.1376, 51.5174]); // Set route to test
+      getRoute([-0.1276, 51.5074], [-0.1376, 51.5174]);
     </script>
   </body>
 </html>
